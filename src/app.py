@@ -6,8 +6,9 @@ import urllib.request
 import urllib.error
 from datetime import datetime
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, HTTPException, status  # AGGIUNTO Depends, HTTPException, status
 from fastapi.responses import HTMLResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials  # AGGIUNTO
 from pydantic import BaseModel
 
 app = FastAPI(
@@ -15,6 +16,21 @@ app = FastAPI(
     description="Chatbot con copione + Gemini + memoria della conversazione",
     version="6.0"
 )
+
+# --- AGGIUNGI QUESTO BLOCCO DI SICUREZZA ---
+security = HTTPBasic()
+
+def verifica_password(creds: HTTPBasicCredentials = Depends(security)):
+    # Cambia username e password come preferisci
+    corrette = {"username": "Alina", "password": "2906"}
+    if creds.username != corrette["username"] or creds.password != corrette["password"]:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Credenziali non valide",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return creds
+# --- FINE BLOCCO SICUREZZA ---
 
 
 # 🔑 CARICAMENTO CHIAVE DAL FILE .env
@@ -247,7 +263,7 @@ def chiedi_a_llama(testo: str) -> str:
     raise RuntimeError(f"Tutti i tentativi falliti: {ultimo_errore}")
 
 
-@app.post("/chat")
+@app.post("/chat", dependencies=[Depends(verifica_password)])  # AGGIUNTA dependencies
 def parla_con_joy(input_utente: UserMessage):
     frase = input_utente.testo.lower().strip()
 
